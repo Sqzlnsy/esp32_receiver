@@ -4,12 +4,23 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Real-Time Video Streaming and Data Visualization</title>
-    <!-- Bootstrap CSS -->
     <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Custom Styles -->
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <a class="navbar-brand" href="#">Streaming App</a>
+        <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav ml-auto">
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('logout') }}">Logout</a>
+                </li>
+            </ul>
+        </div>
+    </nav>
     <div class="container">
         <div class="video-data-container">
             <div class="video-container">
@@ -17,21 +28,32 @@
                 <canvas id="videoCanvas" width="640" height="480"></canvas>
             </div>
             <div class="data-container">
-                <h2>Data Visualization</h2>
-                <button id="addPlotButton">Add Plots</button>
-                    <div id="plotsList" style="display:none;">
-                        <form id="plotsForm" action="/update-active-series" method="post">
-                            {% for series in data_controller.data_series %}
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" name="activeSeries" value="{{ series }}" id="{{ series }}"
-                                       {% if series in data_controller.active_series %} checked {% endif %}>
-                                <label class="form-check-label" for="{{ series }}">
-                                    {{ series.title() }}
-                                </label>
-                            </div>
-                        {% endfor %}
-                        </form>
+                <div class="card">
+                    <div class="card-header">
+                      <h2 class="mb-0">
+                        Data Visualization
+                        <button class="btn btn-link btn-sm" type="button" id="togglePlotsButton">
+                          Add Plots
+                        </button>
+                      </h2>
                     </div>
+                  
+                    <div id="plotsList" class="collapse">
+                      <div class="card-body">
+                        <form id="plotsForm" action="/update-active-series" method="post">
+                          {% for series in data_controller.data_series %}
+                            <div class="form-check">
+                              <input class="form-check-input" type="checkbox" name="activeSeries" value="{{ series }}" id="{{ series }}"
+                                     {% if series in data_controller.active_series %} checked {% endif %}>
+                              <label class="form-check-label" for="{{ series }}">
+                                {{ series.title() }}
+                              </label>
+                            </div>
+                          {% endfor %}
+                        </form>
+                      </div>
+                    </div>
+                  </div>
                 <div class="plots-container" data-active-series='{{ data_controller.active_series | tojson}}'>
                     {% for series in data_controller.active_series %}
                     <div class="plot" id="chartContainer_{{ series }}" style="height: 300px; width: 100%;">

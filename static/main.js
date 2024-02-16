@@ -15,13 +15,23 @@ socket.on('stream', function(data) {
 socket.on('update_data', function(data) {
     const containerId = 'chartContainer_' + data.plot_id;
     const newDataPoints = data.data;
-    console.log(data);
+    // console.log(data);
     updatePlotData(containerId, newDataPoints);
 });
 
-document.getElementById('addPlotButton').addEventListener('click', function() {
+document.addEventListener('DOMContentLoaded', function () {
+    var toggleButton = document.getElementById('togglePlotsButton');
     var plotsList = document.getElementById('plotsList');
-    plotsList.style.display = 'block'; // Show the list
+
+    toggleButton.addEventListener('click', function () {
+        if (plotsList.classList.contains('collapse')) {
+            plotsList.classList.remove('collapse');
+            toggleButton.textContent = 'Hide Plots';
+        } else {
+            plotsList.classList.add('collapse');
+            toggleButton.textContent = 'Add Plots';
+        }
+    });
 });
 
 document.getElementById('plotsForm').addEventListener('change', function(e) {

@@ -184,8 +184,8 @@ def login():
 
 @app.route('/logout')
 def logout():
-    session.clear()
-    return redirect(url_for('index'))
+    session.pop('user_id', None)
+    return redirect(url_for('login'))
 
 @app.before_request
 def load_logged_in_user():
@@ -198,7 +198,10 @@ def load_logged_in_user():
 
 @app.route('/')
 def index():
-    return render_template('index.html', data_controller=data_controller)
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    else:
+        return render_template('index.html', data_controller=data_controller)
 
 @app.route('/update-active-series', methods=['POST'])
 def update_active_series():
