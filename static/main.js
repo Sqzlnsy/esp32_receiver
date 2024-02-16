@@ -32,6 +32,13 @@ document.addEventListener('DOMContentLoaded', function () {
             toggleButton.textContent = 'Add Plots';
         }
     });
+
+    var sidebarToggle = document.getElementById('sidebarToggle');
+    var sidebar = document.getElementById('sidebar');
+
+    sidebarToggle.addEventListener('click', function () {
+        sidebar.classList.toggle('active');
+    });
 });
 
 document.getElementById('plotsForm').addEventListener('change', function(e) {
@@ -60,7 +67,11 @@ document.getElementById('plotsForm').addEventListener('change', function(e) {
 function updatePlotData(containerId, newDataPoints) {
     var chart = charts[containerId];
     if (chart) {
-        chart.options.data[0].dataPoints.push(...newDataPoints);
+        dps = chart.options.data[0].dataPoints;
+        dps.push(...newDataPoints);
+        if (dps.length > 100) {
+            dps.shift();
+        }
         chart.render();
     } else {
         console.log(containerId + " plot does not exist");

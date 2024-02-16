@@ -26,3 +26,15 @@
 .plot {
     margin-bottom: 20px; /* Adds space between plots */
 }
+
+#sidebar {
+    position: fixed;
+    left: -280px; /* Hidden off-screen to the left */
+    height: 100%;
+    background: #f8f9fa;
+    transition: all 0.3s;
+    z-index: 999;
+}
+#sidebar.active {
+    left: 0; /* Slide in */
+}

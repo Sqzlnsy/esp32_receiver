@@ -8,24 +8,67 @@
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-        <a class="navbar-brand" href="#">Streaming App</a>
-        <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+    <nav class="navbar navbar-dark bg-dark">
+        <!-- Sidebar Toggle Button -->
+        <button class="navbar-toggler" type="button" id="sidebarToggle" aria-expanded="false" aria-label="Toggle navigation">
             <span class="navbar-toggler-icon"></span>
-        </button>
-        <div class="collapse navbar-collapse" id="navbarNav">
-            <ul class="navbar-nav ml-auto">
-                <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for('logout') }}">Logout</a>
-                </li>
-            </ul>
-        </div>
+          </button>
+        <a class="navbar-brand" href="/">Streaming App</a>
+        <!-- Spacer to push the logout to the right -->
+        <a class="nav-link" href="{{ url_for('logout') }}">Logout</a>
     </nav>
     <div class="container">
+        <div class="d-flex flex-column flex-shrink-0 p-3 text-white bg-dark" id="sidebar" style="width: 280px;">
+            <a href="/" class="d-flex align-items-center mb-3 mb-md-0 me-md-auto text-white text-decoration-none">
+              <h3 class="fs-4">My Devices</h3>
+            </a>
+            <hr>
+            <ul class="nav nav-pills flex-column mb-auto">
+              <li class="nav-item">
+                <a href="#" class="nav-link active" aria-current="page">
+                  <svg class="bi me-2" width="16" height="16"><use xlink:href="#home"></use></svg>
+                  ESP32
+                </a>
+              </li>
+              <li>
+                <a href="#" class="nav-link text-white">
+                  <svg class="bi me-2" width="16" height="16"><use xlink:href="#speedometer2"></use></svg>
+                  Device_01
+                </a>
+              </li>
+              <li>
+                <a href="#" class="nav-link text-white">
+                  <svg class="bi me-2" width="16" height="16"><use xlink:href="#table"></use></svg>
+                  Device_02
+                </a>
+              </li>
+              <li>
+                <a href="#" class="nav-link text-white">
+                  <svg class="bi me-2" width="16" height="16"><use xlink:href="#grid"></use></svg>
+                  Device_03
+                </a>
+              </li>
+              <li>
+                <a href="#" class="nav-link text-white">
+                  <svg class="bi me-2" width="16" height="16"><use xlink:href="#people-circle"></use></svg>
+                  Device_04
+                </a>
+              </li>
+            </ul>
+            <hr>
+          </div>
         <div class="video-data-container">
             <div class="video-container">
                 <h2>Real-Time Video Stream</h2>
                 <canvas id="videoCanvas" width="640" height="480"></canvas>
+                <div class="col-md-8 offset-md-2">
+                  <form action="/send-command" method="post" class="input-group mb-3">
+                      <input type="text" class="form-control" placeholder="Enter command" name="command" required>
+                      <div class="input-group-append">
+                          <button type="submit" class="btn btn-outline-secondary">Send</button>
+                      </div>
+                  </form>
+              </div>
             </div>
             <div class="data-container">
                 <div class="card">
@@ -37,7 +80,6 @@
                         </button>
                       </h2>
                     </div>
-                  
                     <div id="plotsList" class="collapse">
                       <div class="card-body">
                         <form id="plotsForm" action="/update-active-series" method="post">
@@ -60,7 +102,6 @@
                     </div>
                     {% endfor %}
                 </div>
-            
             </div>
         </div>
     </div>

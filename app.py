@@ -2,6 +2,7 @@ from flask import Flask, render_template, request, jsonify, session,  redirect, 
 from flask import get_flashed_messages
 from flask_socketio import SocketIO
 from flask_sqlalchemy import SQLAlchemy
+import socket
 from sqlalchemy.sql import func
 from werkzeug.security import check_password_hash, generate_password_hash
 import time
@@ -22,7 +23,7 @@ app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///mydatabase.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 socketio = SocketIO(app)
 db = SQLAlchemy(app)
-
+cli = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 frame_q = queue.Queue()
 runing = True
 
@@ -44,7 +45,6 @@ class User(db.Model):
 
     def __repr__(self):
         return '<User %r>' % self.username
-
 
 @socketio.on('connect')
 def handle_connect():
@@ -145,8 +145,7 @@ def data_upstream_receive():
         for series in active_series:
             generate_data_for_series(series)
         
-        time.sleep(0.5)  # Adjust the sleep time as needed
-
+        time.sleep(0.1)  # Adjust the sleep time as needed
 
 def emit_data_task():
     while True:
@@ -161,7 +160,7 @@ def emit_data_task():
                 pass 
             if data_points:
                 socketio.emit('update_data', {'plot_id': series, 'data': data_points})
-        time.sleep(1)
+        time.sleep(0.1)
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -190,7 +189,6 @@ def logout():
 @app.before_request
 def load_logged_in_user():
     user_id = session.get('user_id')
-
     if user_id is None:
         g.user = None
     else:
@@ -211,6 +209,16 @@ def update_active_series():
         # print("Updated active series:", data_controller.active_series)
         return jsonify({'active_series': data_controller.active_series}), 200
 
+@app.route('/send-command', methods=['POST'])
+def send_command():
+    command = request.form['command']
+    byte_command = command.encode('utf-8')
+    try:
+        cli.sendall(byte_command)
+    except: 
+        pass
+    return redirect(url_for('index'))
+
 if __name__ == '__main__':
     thread = Thread(target=background_task)
     thread.daemon = True
@@ -219,6 +227,15 @@ if __name__ == '__main__':
     # udp_thread.daemon = True
     data_rec_thread = Thread(target=data_upstream_receive)
     data_send_thread = Thread(target=emit_data_task)
+
+    server_ip = '192.168.137.87'
+    server_port = 2022
+
+    print("Creating TCP client socket...")
+    cli.settimeout(2)
+    print(f"Connecting to server at {server_ip}:{server_port}...")
+    cli.connect((server_ip, server_port))
+    print("Connection successful.")
    
     try:
         thread.start()
@@ -235,3 +252,5 @@ if __name__ == '__main__':
         data_send_thread.join()
     finally:
         sock.close()
+        cli.close()
+        print("Socket closed.")
