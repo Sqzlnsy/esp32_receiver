@@ -1,4 +1,6 @@
 // main.js
+var charts = {}; 
+
 var socket = io.connect(location.protocol + '//' + document.domain + ':' + location.port);
 socket.on('stream', function(data) {
     var canvas = document.getElementById('videoCanvas');
@@ -8,6 +10,13 @@ socket.on('stream', function(data) {
         context.drawImage(img, 0, 0, canvas.width, canvas.height);
     };
     img.src = 'data:image/jpeg;base64,' + data.data;
+});
+
+socket.on('update_data', function(data) {
+    const containerId = 'chartContainer_' + data.plot_id;
+    const newDataPoints = data.data;
+    console.log(data);
+    updatePlotData(containerId, newDataPoints);
 });
 
 document.getElementById('addPlotButton').addEventListener('click', function() {
@@ -26,42 +35,63 @@ document.getElementById('plotsForm').addEventListener('change', function(e) {
         }).then(response => {
             if (response.ok) {
                 console.log('Active series updated successfully');
-                // Optionally, refresh part of your page or show a notification
+                return response.json();
             } else {
                 console.error('Failed to update active series');
+                throw new Error('Failed to update active series');
             }
+        }).then(data => {
+            // Update active series data in plots-container attribute
+            update_plot_lists(data.active_series);
         }).catch(error => console.error('Error:', error));
     }
 });
 
-function initializePlot(containerId, series) {
-    // Replace this with your actual plot initialization code
-    // For example, if using CanvasJS:
+function updatePlotData(containerId, newDataPoints) {
+    var chart = charts[containerId];
+    if (chart) {
+        chart.options.data[0].dataPoints.push(...newDataPoints);
+        chart.render();
+    } else {
+        console.log(containerId + " plot does not exist");
+    }
+}
+
+function initializePlot(containerId, series, dataPoints) {
     var chart = new CanvasJS.Chart(containerId, {
         title: {
             text: `Plot for ${series}`
         },
-        data: [
-            // Your data here
-        ]
+        data: [{
+            type: "line",
+            dataPoints: dataPoints
+        }]
     });
     chart.render();
+    charts[containerId] = chart;
 }
 
+function update_plot_lists(active_series){
+    const plotsContainer = document.querySelector('.plots-container');
+    plotsContainer.setAttribute('data-active-series', JSON.stringify(active_series));
+    // Remove existing plots
+    const existingPlots = document.querySelectorAll('.plot');
+    existingPlots.forEach(plot => plot.remove());
+    
+    active_series.forEach(series => {
+        const newPlot = document.createElement('div');
+        newPlot.className = 'plot';
+        newPlot.id = 'chartContainer_' + series;
+        newPlot.style = 'height: 300px; width: 100%;';
+        plotsContainer.appendChild(newPlot);
+        initializePlot(newPlot.id, series, []);
+    });
+    
+    console.log('Active series updated successfully');
+}
 // Canvas.js chart setup
 window.onload = function () {
     const plotsContainer = document.querySelector('.plots-container');
     const activeSeries = JSON.parse(plotsContainer.getAttribute('data-active-series'));
-
-    activeSeries.forEach(function(series) {
-        const containerId = `chartContainer_${series}`;
-        const container = document.createElement('div');
-        container.id = containerId;
-        container.style.height = '300px';
-        container.style.width = '100%';
-        plotsContainer.appendChild(container);
-
-        // Initialize the plot for this series
-        initializePlot(containerId, series);
-    });
+    update_plot_lists(activeSeries);
 };

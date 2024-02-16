@@ -1,9 +1,12 @@
+from threading import Lock
+
 class DataController:
     def __init__(self):
         self.data_series = ['data1', 'data2', 'data3']  # List of all data series identifiers
         self.active_series = []  # List to keep track of which data series are currently being shown
         self.series_ids = {series: f"id_{index}" for index, series in enumerate(self.data_series, 1)}
-
+        self.lock = Lock()
+        
         for series in self.data_series:
             self.series_ids[series] = "id_for_" + series
 

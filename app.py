@@ -1,7 +1,9 @@
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request, jsonify
 from flask_socketio import SocketIO
 import time
+import random
 from threading import Thread
+from queue import Queue, Empty
 import socket
 import queue
 import base64
@@ -21,6 +23,13 @@ listen_addr  = '192.168.137.1'
 target_addr = '192.168.137.125'
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
+MAX_QUEUE_SIZE = 100 
+data_queues = {series_id: Queue(maxsize=MAX_QUEUE_SIZE) for series_id in data_controller.data_series}
+
+@socketio.on('connect')
+def handle_connect():
+    print('Client connected')
+
 def udp_recv(listen_addr, target_addr):
     try:
         sock.settimeout(1)
@@ -36,46 +45,48 @@ def udp_recv(listen_addr, target_addr):
     print('Start Streaming...')
 
     chunks = b''
-    while runing:
-        try:
-            msg, address = sock.recvfrom(2**16)
-        except Exception as e:
-            # print('sock.recvfrom',e)
-            # sock.sendto(b'\x55', (target_addr, 55555))
-            continue
-        soi = msg.find(b'\xff\xd8\xff')
-        eoi = msg.rfind(b'\xff\xd9')
-        # print(time.perf_counter(), len(msg), soi, eoi, msg[:2], msg[-2:])
-        if soi >= 0:
-            if chunks.startswith(b'\xff\xd8\xff'):
-                if eoi >= 0:
-                    chunks += msg[:eoi+2]
-                    # print(time.perf_counter(), "Complete picture")
-                    eoi = -1
-                else:
-                    chunks += msg[:soi]
-                    # print(time.perf_counter(), "Incomplete picture")
-                try:
-                    frame_q.put(chunks, timeout=1)
-                except Exception as e:
-                    print(e)
-            chunks = msg[soi:]
-        else:
-            chunks += msg
-        if eoi >= 0:
-            eob = len(chunks) - len(msg) + eoi + 2
-            if chunks.startswith(b'\xff\xd8\xff'):
-                byte_frame = chunks[:eob]
-                # print(time.perf_counter(), "Complete picture")
-                try:
-                    frame_q.put(byte_frame, timeout=1)
-                except Exception as e:
-                    print(e)
+    try:
+        while runing:
+            try:
+                msg, address = sock.recvfrom(2**16)
+            except Exception as e:
+                # print('sock.recvfrom',e)
+                # sock.sendto(b'\x55', (target_addr, 55555))
+                continue
+            soi = msg.find(b'\xff\xd8\xff')
+            eoi = msg.rfind(b'\xff\xd9')
+            # print(time.perf_counter(), len(msg), soi, eoi, msg[:2], msg[-2:])
+            if soi >= 0:
+                if chunks.startswith(b'\xff\xd8\xff'):
+                    if eoi >= 0:
+                        chunks += msg[:eoi+2]
+                        # print(time.perf_counter(), "Complete picture")
+                        eoi = -1
+                    else:
+                        chunks += msg[:soi]
+                        # print(time.perf_counter(), "Incomplete picture")
+                    try:
+                        frame_q.put(chunks, timeout=1)
+                    except Exception as e:
+                        print(e)
+                chunks = msg[soi:]
             else:
-                print(time.perf_counter(), "Invalid picture")
-            chunks = chunks[eob:]
-    sock.close()
-    print('Stop Streaming')
+                chunks += msg
+            if eoi >= 0:
+                eob = len(chunks) - len(msg) + eoi + 2
+                if chunks.startswith(b'\xff\xd8\xff'):
+                    byte_frame = chunks[:eob]
+                    # print(time.perf_counter(), "Complete picture")
+                    try:
+                        frame_q.put(byte_frame, timeout=1)
+                    except Exception as e:
+                        print(e)
+                else:
+                    print(time.perf_counter(), "Invalid picture")
+                chunks = chunks[eob:]
+    except KeyboardInterrupt:
+        sock.close()
+        print('Stop Streaming')
 
 def background_task():
     """Example of how to send server generated events to clients."""
@@ -95,6 +106,43 @@ def background_task():
             socketio.emit('stream', {'data': 'Empty'})
             continue
 
+def generate_data_for_series(series_id):
+    data_point = {'x': time.time(), 'y': random.randint(1, 100)}
+    if series_id in data_queues:
+        queue = data_queues[series_id]
+        if queue.full():
+            try:
+                queue.get_nowait() 
+            except Empty:
+                pass
+        queue.put_nowait(data_point)
+
+def data_upstream_receive():
+    while True:  # Assuming this runs in a continuous loop or background thread
+        with data_controller.lock:  # Ensure thread-safe access to active_series
+            active_series = list(data_controller.active_series)  # Make a copy to minimize lock holding time
+        
+        for series in active_series:
+            generate_data_for_series(series)
+        
+        time.sleep(0.5)  # Adjust the sleep time as needed
+
+
+def emit_data_task():
+    while True:
+        for series, queue in data_queues.items():
+            # Prepare a list to hold all data points for this emission cycle
+            data_points = []
+            try:
+                while True:  # Keep trying to dequeue until the queue is empty
+                    data_point = queue.get_nowait()  # Attempt to dequeue a data point
+                    data_points.append(data_point)  # Add the data point to the list
+            except Empty:
+                pass 
+            if data_points:
+                socketio.emit('update_data', {'plot_id': series, 'data': data_points})
+        time.sleep(1)
+
 @app.route('/')
 def index():
     return render_template('index.html', data_controller=data_controller)  # Ensure you have this HTML file in the templates directory.
@@ -102,10 +150,10 @@ def index():
 @app.route('/update-active-series', methods=['POST'])
 def update_active_series():
     selected_series = request.form.getlist('activeSeries')  # Adjusted for checkbox name attribute
-    data_controller.active_series = selected_series  # Simple replacement; adjust as needed
-    print("Updated active series:", data_controller.active_series)
-    
-    return 'OK', 200  # Respond indicating success
+    with data_controller.lock:
+        data_controller.active_series = selected_series  # Simple replacement; adjust as needed
+        # print("Updated active series:", data_controller.active_series)
+        return jsonify({'active_series': data_controller.active_series}), 200
 
 if __name__ == '__main__':
     thread = Thread(target=background_task)
@@ -113,15 +161,21 @@ if __name__ == '__main__':
     
     udp_thread = Thread(target=udp_recv, args=(listen_addr, target_addr))
     # udp_thread.daemon = True
+    data_rec_thread = Thread(target=data_upstream_receive)
+    data_send_thread = Thread(target=emit_data_task)
    
     try:
         thread.start()
         udp_thread.start()
+        data_rec_thread.start()
+        data_send_thread.start()
         socketio.run(app)
     except KeyboardInterrupt:
         print("Server down")
         runing = False
         udp_thread.join()
         thread.join()
+        data_rec_thread.join()
+        data_send_thread.join()
     finally:
         sock.close()

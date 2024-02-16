@@ -32,7 +32,7 @@
                         {% endfor %}
                         </form>
                     </div>
-                <div class="plots-container" data-active-series="{{ data_controller.active_series | tojson }}">
+                <div class="plots-container" data-active-series='{{ data_controller.active_series | tojson}}'>
                     {% for series in data_controller.active_series %}
                     <div class="plot" id="chartContainer_{{ series }}" style="height: 300px; width: 100%;">
                     </div>
