@@ -1,5 +1,9 @@
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, session,  redirect, url_for, g, flash
+from flask import get_flashed_messages
 from flask_socketio import SocketIO
+from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy.sql import func
+from werkzeug.security import check_password_hash, generate_password_hash
 import time
 import random
 from threading import Thread
@@ -13,8 +17,11 @@ from data_controller import DataController
 data_controller = DataController()
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'secret!'
+app.config['SECRET_KEY'] = 'my_secret_key_here'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///mydatabase.db'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 socketio = SocketIO(app)
+db = SQLAlchemy(app)
 
 frame_q = queue.Queue()
 runing = True
@@ -25,6 +32,19 @@ sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
 MAX_QUEUE_SIZE = 100 
 data_queues = {series_id: Queue(maxsize=MAX_QUEUE_SIZE) for series_id in data_controller.data_series}
+
+class User(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(80), nullable=False)
+    password = db.Column(db.String(120), nullable=False)
+    email = db.Column(db.String(80), unique=True, nullable=False)
+    created_at = db.Column(db.DateTime(timezone=True),
+                           server_default=func.now())
+    bio = db.Column(db.Text)
+
+    def __repr__(self):
+        return '<User %r>' % self.username
+
 
 @socketio.on('connect')
 def handle_connect():
@@ -143,9 +163,42 @@ def emit_data_task():
                 socketio.emit('update_data', {'plot_id': series, 'data': data_points})
         time.sleep(1)
 
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+        
+        user = User.query.filter_by(username=username).first()
+        
+        # if user is None or not check_password_hash(user.password, password):
+        if user.password != password:
+            flash('Invalid username or password')
+            return redirect(url_for('login'))
+        
+        session.clear()
+        session['user_id'] = user.id
+        return redirect(url_for('index'))
+    
+    return render_template('login.html')
+
+@app.route('/logout')
+def logout():
+    session.clear()
+    return redirect(url_for('index'))
+
+@app.before_request
+def load_logged_in_user():
+    user_id = session.get('user_id')
+
+    if user_id is None:
+        g.user = None
+    else:
+        g.user = User.query.get(user_id)
+
 @app.route('/')
 def index():
-    return render_template('index.html', data_controller=data_controller)  # Ensure you have this HTML file in the templates directory.
+    return render_template('index.html', data_controller=data_controller)
 
 @app.route('/update-active-series', methods=['POST'])
 def update_active_series():
