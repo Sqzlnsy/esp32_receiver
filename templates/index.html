@@ -2,18 +2,55 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Video Stream</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real-Time Video Streaming and Data Visualization</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Custom Styles -->
+    <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-    <img id="videoElement" src="" alt="Video stream">
+    <div class="container">
+        <div class="video-data-container">
+            <div class="video-container">
+                <h2>Real-Time Video Stream</h2>
+                <canvas id="videoCanvas" width="640" height="480"></canvas>
+            </div>
+            <div class="data-container">
+                <h2>Data Visualization</h2>
+                <button id="addPlotButton">Add Plots</button>
+                    <div id="plotsList" style="display:none;">
+                        <form id="plotsForm" action="/update-active-series" method="post">
+                            {% for series in data_controller.data_series %}
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="activeSeries" value="{{ series }}" id="{{ series }}"
+                                       {% if series in data_controller.active_series %} checked {% endif %}>
+                                <label class="form-check-label" for="{{ series }}">
+                                    {{ series.title() }}
+                                </label>
+                            </div>
+                        {% endfor %}
+                        </form>
+                    </div>
+                <div class="plots-container" data-active-series="{{ data_controller.active_series | tojson }}">
+                    {% for series in data_controller.active_series %}
+                    <div class="plot" id="chartContainer_{{ series }}" style="height: 300px; width: 100%;">
+                    </div>
+                    {% endfor %}
+                </div>
+            
+            </div>
+        </div>
+    </div>
+    <!-- Bootstrap JS, Popper.js, and jQuery -->
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.2/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
-    <script>
-        var socket = io.connect(location.protocol + '//' + document.domain + ':' + location.port);
-        socket.on('stream', function(data) {
-            // console.log("data received", data)
-            var videoElement = document.getElementById('videoElement');
-            videoElement.src = 'data:image/jpeg;base64,' + data.data;
-        });
-    </script>
+    <!-- Canvas.js -->
+    <script src="https://canvasjs.com/assets/script/canvasjs.min.js"></script>
+    <!-- Custom Script -->
+    <script src="/static/main.js"></script>
 </body>
 </html>
+

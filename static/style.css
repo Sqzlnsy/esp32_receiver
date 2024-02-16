@@ -1,0 +1,28 @@
+/* Additional styling can be added here */
+.container {
+    max-width: 100%; /* Allows the container to fill the available width */
+}
+
+.video-container {
+    margin-bottom: 20px;
+}
+
+/* Custom Styles */
+.video-data-container {
+    display: flex;
+    justify-content: space-between;
+}
+
+.video-container, .data-container {
+    flex: 1; /* Assign equal width to both containers */
+    padding: 10px; /* Optional: Adds some space around the content */
+}
+
+.plots-container {
+    overflow-y: auto; /* Enables vertical scrolling */
+    max-height: 500px; /* Set a max-height that fits your layout */
+}
+
+.plot {
+    margin-bottom: 20px; /* Adds space between plots */
+}

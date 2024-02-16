@@ -1,4 +1,4 @@
-from flask import Flask, render_template
+from flask import Flask, render_template, request
 from flask_socketio import SocketIO
 import time
 from threading import Thread
@@ -7,6 +7,8 @@ import queue
 import base64
 import cv2
 import numpy as np
+from data_controller import DataController
+data_controller = DataController()
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'secret!'
@@ -95,7 +97,15 @@ def background_task():
 
 @app.route('/')
 def index():
-    return render_template('index.html')  # Ensure you have this HTML file in the templates directory.
+    return render_template('index.html', data_controller=data_controller)  # Ensure you have this HTML file in the templates directory.
+
+@app.route('/update-active-series', methods=['POST'])
+def update_active_series():
+    selected_series = request.form.getlist('activeSeries')  # Adjusted for checkbox name attribute
+    data_controller.active_series = selected_series  # Simple replacement; adjust as needed
+    print("Updated active series:", data_controller.active_series)
+    
+    return 'OK', 200  # Respond indicating success
 
 if __name__ == '__main__':
     thread = Thread(target=background_task)
